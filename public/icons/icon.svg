@@ -1,0 +1,71 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="50%" stop-color="#0b0f19" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <linearGradient id="neonCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" />
+      <stop offset="100%" stop-color="#0284c7" />
+    </linearGradient>
+    <linearGradient id="neonEmerald" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="neonAmber" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
+    <linearGradient id="neonRose" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f43f5e" />
+      <stop offset="100%" stop-color="#be123c" />
+    </linearGradient>
+    <radialGradient id="glowGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0" />
+    </radialGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.5" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="112.64" fill="url(#bgGrad)" stroke="#1e293b" stroke-width="7.68" />
+
+  <!-- Ambient Glow -->
+  <circle cx="256" cy="256" r="193.536" fill="url(#glowGlow)" />
+
+  <!-- Radar Circles -->
+  <circle cx="256" cy="256" r="163.4304" fill="none" stroke="#334155" stroke-width="6.144" stroke-dasharray="10.24 10.24" opacity="0.6" />
+  <circle cx="256" cy="256" r="111.8208" fill="none" stroke="#0ea5e9" stroke-width="7.68" opacity="0.5" />
+  <circle cx="256" cy="256" r="60.211200000000005" fill="none" stroke="#38bdf8" stroke-width="9.216" opacity="0.8" />
+
+  <!-- Highway Node Tracks -->
+  <!-- Main vertical artery -->
+  <path d="M 256 92.56960000000001 L 256 419.43039999999996" stroke="#1e293b" stroke-width="20.48" stroke-linecap="round" />
+  <path d="M 256 92.56960000000001 L 256 234.496" stroke="url(#neonCyan)" stroke-width="15.36" stroke-linecap="round" />
+  <path d="M 256 277.504 L 256 419.43039999999996" stroke="url(#neonEmerald)" stroke-width="15.36" stroke-linecap="round" />
+
+  <!-- Curved artery left to right -->
+  <path d="M 105.47200000000001 320.512 C 212.992 320.512, 234.496 191.488, 406.528 191.488" 
+        fill="none" stroke="url(#neonAmber)" stroke-width="12.8" stroke-linecap="round" />
+
+  <!-- Cross curved artery -->
+  <path d="M 118.37440000000001 169.98399999999998 Q 256 299.008 393.62559999999996 363.52" 
+        fill="none" stroke="url(#neonRose)" stroke-width="10.24" stroke-linecap="round" opacity="0.9" />
+
+  <!-- Traffic Signal Beacons / Nodes -->
+  <!-- Top Node -->
+  <circle cx="256" cy="105.47200000000001" r="12.8" fill="#38bdf8" filter="url(#shadow)" />
+  <!-- Center Intersection Hub -->
+  <circle cx="256" cy="256" r="25.6" fill="#0f172a" stroke="#0284c7" stroke-width="9.216" />
+  <circle cx="256" cy="256" r="12.8" fill="#38bdf8" />
+  
+  <!-- Right node -->
+  <circle cx="406.528" cy="191.488" r="11.264" fill="#fbbf24" />
+  <!-- Left node -->
+  <circle cx="105.47200000000001" cy="320.512" r="11.264" fill="#f43f5e" />
+  <!-- Bottom node -->
+  <circle cx="256" cy="406.528" r="12.8" fill="#34d399" />
+</svg>

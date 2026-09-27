@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+  "name": "Live Traffic Congestion Dashboard",
+  "short_name": "TrafficFlow",
+  "description": "Real-time AI-powered traffic telemetry, incident detection & vector navigation map",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
+  "background_color": "#0b0f19",
+  "theme_color": "#0b0f19",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": [
+    "navigation",
+    "maps",
+    "utilities",
+    "travel"
+  ],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Live Map",
+      "short_name": "Map",
+      "description": "Open live interactive traffic map",
+      "url": "/?view=map",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Incident Alerts",
+      "short_name": "Incidents",
+      "description": "View live traffic incidents and road closures",
+      "url": "/?view=incidents",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Severe Congestion",
+      "short_name": "Critical",
+      "description": "Filter strictly severe bottlenecks",
+      "url": "/?filter=severe",
+      "icons": [
+        {
+          "src": "/icons/icon-192x192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/screenshot-desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Live Traffic Congestion Dashboard Desktop Overview"
+    },
+    {
+      "src": "/screenshots/screenshot-mobile.png",
+      "sizes": "400x800",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Real-time Incident Feeds and Telemetry on Mobile"
+    }
+  ]
+}
