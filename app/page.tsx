@@ -44,13 +44,15 @@ export default function TrafficDashboard() {
   const PAGE_SIZE = 10;
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const wsFailCountRef = useRef(0);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
   // Fallback REST fetch to ensure instant render even before WebSocket handshake
-  const fetchFallbackData = async () => {
+  const fetchFallbackData = useCallback(async () => {
     try {
       const segRes = await fetch('/api/segments');
       if (segRes.ok) {
@@ -58,12 +60,22 @@ export default function TrafficDashboard() {
         if (json.data && json.data.length > 0) {
           setSegments(json.data);
           if (json.timestamp) setLastUpdated(json.timestamp);
+          setConnectionStatus('connected');
         }
       }
     } catch (e) {
-      console.warn('Initial REST fallback fetch error:', e);
+      console.warn('REST fallback fetch error:', e);
     }
-  };
+  }, [setSegments, setLastUpdated, setConnectionStatus]);
+
+  // Start polling fallback for serverless platforms like Vercel
+  const startPollingFallback = useCallback(() => {
+    if (pollingIntervalRef.current) return;
+    setConnectionStatus('connected');
+    pollingIntervalRef.current = setInterval(() => {
+      fetchFallbackData();
+    }, 10000);
+  }, [fetchFallbackData, setConnectionStatus]);
 
   const connectWebSocket = useCallback(() => {
     if (typeof window === 'undefined') return;
@@ -89,7 +101,12 @@ export default function TrafficDashboard() {
       wsRef.current = ws;
 
       ws.onopen = () => {
+        wsFailCountRef.current = 0;
         setConnectionStatus('connected');
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
       };
 
       ws.onmessage = (event) => {
@@ -116,26 +133,47 @@ export default function TrafficDashboard() {
 
       ws.onclose = () => {
         if (wsRef.current === ws) {
-          setConnectionStatus('reconnecting');
           wsRef.current = null;
-          reconnectTimeoutRef.current = setTimeout(connectWebSocket, 2000);
+          // If WebSockets fail repeatedly (e.g. running on Vercel Serverless), switch to auto-polling
+          if (wsFailCountRef.current >= 2) {
+            startPollingFallback();
+          } else {
+            setConnectionStatus('reconnecting');
+            reconnectTimeoutRef.current = setTimeout(connectWebSocket, 2000);
+          }
         }
       };
 
       ws.onerror = () => {
-        if (wsRef.current === ws) {
-          setConnectionStatus('disconnected');
+        wsFailCountRef.current += 1;
+        if (wsFailCountRef.current >= 2) {
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current);
+            reconnectTimeoutRef.current = null;
+          }
+          startPollingFallback();
         }
       };
     } catch {
-      setConnectionStatus('disconnected');
-      reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
+      wsFailCountRef.current += 1;
+      if (wsFailCountRef.current >= 2) {
+        startPollingFallback();
+      } else {
+        setConnectionStatus('disconnected');
+        reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
+      }
     }
-  }, []);
+  }, [setSegments, setIncidents, setLastUpdated, setConnectionStatus, startPollingFallback]);
 
   useEffect(() => {
     fetchFallbackData();
     connectWebSocket();
+
+    return () => {
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+      if (wsRef.current) wsRef.current.close();
+    };
 
     // iOS PWA Background Suspension Handler:
     const handleVisibilityChange = () => {
