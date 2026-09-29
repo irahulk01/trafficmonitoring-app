@@ -3,31 +3,27 @@
 /**
  * TrafficMap.tsx
  *
- * Renders a live TomTom map centered on Hazaribagh using @tomtom-org/maps-sdk/map.
+ * Renders a live Mappls-powered map centered on Hazaribagh using MapLibre GL JS
+ * with Mappls vector map tiles + a raster traffic overlay layer.
  *
  * What this component does:
- *  1. Initialises a TomTomMap (MapLibre GL JS under the hood) on first mount.
- *  2. Loads TrafficFlowModule  → vector-tile traffic-flow colour layer from TomTom.
- *  3. Loads TrafficIncidentsModule → vector-tile incident icons from TomTom.
- *  4. Adds a MapLibre Marker + Popup for every entry in monitoredSegments,
- *     colour-coded by the live severity data the parent feeds in via segmentData.
- *  5. Re-colours / updates popups whenever segmentData changes (WebSocket push).
+ *  1. Bootstraps a MapLibre GL map using Mappls vector map style tiles.
+ *  2. Overlays a Mappls real-time traffic raster tile layer.
+ *  3. Adds a custom MapLibre Marker + Popup for every monitored segment,
+ *     colour-coded by the live severity data fed via segmentData prop.
+ *  4. Re-colours / updates popups whenever segmentData changes (WebSocket push).
+ *  5. Flies to a selected segment when selectedSegmentId changes.
  *
- * Public-preview SDK flags
- * ────────────────────────
- * • TomTomMap requires apiKey in the constructor (via GlobalConfig partial).
- *   It is passed as NEXT_PUBLIC_TOMTOM_MAP_KEY — a *separate*, scope-restricted
- *   key that is intentionally browser-visible (see .env.example for why).
- * • TrafficFlowModule.get() and TrafficIncidentsModule.get() are static
- *   async factory methods; both modules bind to the vector-tile sources already
- *   baked into the standard style so no extra tile URL configuration is needed.
- * • The SDK is ESM-only; this file is a Client Component so Next.js bundles it
- *   for the browser without the serverExternalPackages exclusion interfering.
+ * API Keys used:
+ *  • NEXT_PUBLIC_MAPPLS_REST_API_KEY — browser-visible Mappls REST key used
+ *    only for rendering map tiles and traffic tiles. This is safe to expose in
+ *    the browser because you should restrict it to your domain in the
+ *    Mappls console (https://apis.mappls.com/console).
  */
 
 import { useEffect, useRef, useCallback } from 'react';
 import { monitoredSegments } from '@/lib/segments';
-import type { LiveSegmentData } from '@/lib/tomtom';
+import type { LiveSegmentData } from '@/lib/mappls';
 
 // NOTE: maplibre-gl is NOT imported at the top level.
 // maplibre-gl uses new URL('./worker', import.meta.url) which Turbopack
@@ -75,7 +71,8 @@ function severityColor(segId: string, data: LiveSegmentData[]): string {
 function buildMarkerEl(color: string): HTMLDivElement {
   const container = document.createElement('div');
   container.className = 'custom-map-marker';
-  container.style.cssText = 'width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;';
+  container.style.cssText =
+    'width:26px;height:26px;display:flex;align-items:center;justify-content:center;cursor:pointer;';
 
   const dot = document.createElement('div');
   dot.className = 'marker-dot';
@@ -120,8 +117,15 @@ function buildPopupHTML(segId: string, data: LiveSegmentData[]): string {
       ? '🟢 Free Flow'
       : 'Awaiting data';
 
-  const delaySec = live ? Math.max(0, (live.currentTravelTime || 0) - (live.freeFlowTravelTime || 0)) : 0;
-  const delayText = delaySec > 45 ? `+${Math.round(delaySec / 60)} min delay` : delaySec > 15 ? `+${delaySec}s delay` : 'On Time';
+  const delaySec = live
+    ? Math.max(0, (live.currentTravelTime || 0) - (live.freeFlowTravelTime || 0))
+    : 0;
+  const delayText =
+    delaySec > 45
+      ? `+${Math.round(delaySec / 60)} min delay`
+      : delaySec > 15
+      ? `+${delaySec}s delay`
+      : 'On Time';
 
   const rows = live
     ? `
@@ -133,11 +137,19 @@ function buildPopupHTML(segId: string, data: LiveSegmentData[]): string {
         <span style="color:#94a3b8">Delay:</span>
         <strong style="color:${delaySec > 30 ? '#fbbf24' : '#34d399'};font-family:monospace">${delayText}</strong>
       </div>
-      ${live.jamLengthMeters > 0 ? `
+      ${
+        live.jamLengthMeters > 0
+          ? `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:11px">
         <span style="color:#f87171">Queue:</span>
-        <strong style="color:#f87171;font-family:monospace">${live.jamLengthMeters >= 1000 ? (live.jamLengthMeters/1000).toFixed(1) + ' km' : live.jamLengthMeters + ' m'}</strong>
-      </div>` : ''}
+        <strong style="color:#f87171;font-family:monospace">${
+          live.jamLengthMeters >= 1000
+            ? (live.jamLengthMeters / 1000).toFixed(1) + ' km'
+            : live.jamLengthMeters + ' m'
+        }</strong>
+      </div>`
+          : ''
+      }
     `
     : '<div style="color:#94a3b8;font-style:italic;font-size:11px;padding:4px 0">Awaiting live telemetry…</div>';
 
@@ -155,6 +167,24 @@ function buildPopupHTML(segId: string, data: LiveSegmentData[]): string {
   `;
 }
 
+// ─── Mappls tile helpers ──────────────────────────────────────────────────────
+
+/**
+ * Returns the Mappls MapLibre GL style URL.
+ * Mappls provides a standard MapLibre-compatible vector style endpoint.
+ */
+function mapplsStyleUrl(apiKey: string): string {
+  // Mappls standard vector tile style (dark-friendly raster basemap)
+  return `https://apis.mappls.com/advancedmaps/api/${apiKey}/map_sdk_style`;
+}
+
+/**
+ * Returns the Mappls traffic raster tile URL template.
+ */
+function mapplsTrafficTileUrl(apiKey: string): string {
+  return `https://apis.mappls.com/advancedmaps/v1/${apiKey}/traffic_tiles/{z}/{x}/{y}.png`;
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function TrafficMap({
@@ -164,7 +194,8 @@ export default function TrafficMap({
   className,
 }: Props) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<import('@tomtom-org/maps-sdk/map').TomTomMap | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapRef = useRef<any | null>(null);
   const markersRef = useRef<MarkerEntry[]>([]);
   const initAttemptedRef = useRef(false);
   // Keep a stable ref to latest segmentData for the init closure
@@ -182,83 +213,92 @@ export default function TrafficMap({
     const container = mapContainerRef.current;
     if (!container) return;
 
-    const apiKey = process.env.NEXT_PUBLIC_TOMTOM_MAP_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_MAPPLS_REST_API_KEY;
     if (!apiKey) {
       console.error(
-        '[TrafficMap] NEXT_PUBLIC_TOMTOM_MAP_KEY is not set.\n' +
-          'Create a restricted TomTom API key scoped to Maps/Traffic-tile permissions only\n' +
-          'and add it to .env as NEXT_PUBLIC_TOMTOM_MAP_KEY.\n' +
-          'See .env.example — it explains why this must be a SEPARATE key from TOMTOM_API_KEY.'
+        '[TrafficMap] NEXT_PUBLIC_MAPPLS_REST_API_KEY is not set.\n' +
+          'Add it to .env and restart the server.\n' +
+          'Get a key at https://apis.mappls.com/console'
       );
       return;
     }
 
     (async () => {
       try {
-        // Inject MapLibre GL CSS at runtime (can't be a static import — see top comment)
+        // Inject MapLibre GL CSS at runtime
         injectMaplibreCSS();
 
-        // Dynamic import keeps the large SDK + maplibre-gl bundle browser-only.
-        // We also destructure Marker and Popup here from maplibre-gl so they
-        // are never touched by Turbopack's static analysis at module-graph time.
-        const [{ TomTomMap, TrafficFlowModule }, maplibreGl] =
-          await Promise.all([
-            import('@tomtom-org/maps-sdk/map'),
-            import('maplibre-gl'),
-          ]);
-        const { Marker, Popup } = maplibreGl;
+        // Dynamic import keeps the large maplibre-gl bundle browser-only.
+        const maplibreGl = await import('maplibre-gl');
+        const { Map: MapLibreMap, Marker, Popup } = maplibreGl;
 
-        // Configure MapLibre web worker to prevent 404 in Next.js bundle
+        // Configure MapLibre web worker
         if (typeof maplibreGl.setWorkerUrl === 'function') {
           maplibreGl.setWorkerUrl('/maplibre-gl-worker.mjs');
-        } else if (maplibreGl.config) {
-          maplibreGl.config.WORKER_URL = '/maplibre-gl-worker.mjs';
+        } else if ((maplibreGl as any).config) {
+          (maplibreGl as any).config.WORKER_URL = '/maplibre-gl-worker.mjs';
         }
 
-        const map = new TomTomMap({
-          apiKey,
-          style: {
-            type: 'standard',
-            id: 'standardDark',
-            include: ['trafficFlow'],
-          },
-          mapLibre: {
-            container,
-            center: [85.362, 23.996], // [lon, lat] – Hazaribagh town centre
-            zoom: 13.5,
-            minZoom: 12, // Prevents zooming out beyond Hazaribagh city area
-            maxZoom: 18,
-            maxBounds: [
-              [85.25, 23.90], // Southwest bounds [lon, lat]
-              [85.48, 24.08], // Northeast bounds [lon, lat]
-            ],
-          },
+        // ── 1. Initialize MapLibre GL map with Mappls basemap style ──────────
+        const styleUrl = mapplsStyleUrl(apiKey);
+
+        const map = new MapLibreMap({
+          container,
+          style: styleUrl,
+          center: [85.362, 23.996], // [lon, lat] – Hazaribagh town centre
+          zoom: 13.5,
+          minZoom: 12,
+          maxZoom: 18,
+          maxBounds: [
+            [85.25, 23.90], // Southwest [lon, lat]
+            [85.48, 24.08], // Northeast [lon, lat]
+          ],
+          attributionControl: false, // we render custom attribution
         });
 
         mapRef.current = map;
 
-        // Poll mapReady instead of listening for a named event
-        await new Promise<void>((resolve) => {
-          if (map.mapReady) { resolve(); return; }
-          const id = setInterval(() => { if (map.mapReady) { clearInterval(id); resolve(); } }, 80);
+        // Wait for the map style to fully load
+        await new Promise<void>((resolve, reject) => {
+          map.on('load', () => resolve());
+          map.on('error', (e: any) => {
+            // Style load errors — log and still resolve so markers still render
+            console.warn('[TrafficMap] Map style load error:', e.error?.message || e);
+            resolve();
+          });
+          // Safety timeout
+          setTimeout(() => resolve(), 8000);
         });
 
-        // Trigger mapLibre resize to ensure canvas matches container dimensions
-        if (map.mapLibreMap) {
-          map.mapLibreMap.resize();
-        }
+        // Resize canvas after load
+        map.resize();
 
-        // ── 2. Traffic Flow (colour-coded speed tiles) ───────────────────
+        // ── 2. Add Mappls real-time traffic raster tile layer ─────────────────
         try {
-          await TrafficFlowModule.get(map, { visible: true });
+          if (!map.getSource('mappls-traffic')) {
+            map.addSource('mappls-traffic', {
+              type: 'raster',
+              tiles: [mapplsTrafficTileUrl(apiKey)],
+              tileSize: 256,
+              attribution: '© Mappls | MapMyIndia',
+            });
+          }
+
+          if (!map.getLayer('mappls-traffic-layer')) {
+            map.addLayer({
+              id: 'mappls-traffic-layer',
+              type: 'raster',
+              source: 'mappls-traffic',
+              paint: {
+                'raster-opacity': 0.75,
+              },
+            });
+          }
         } catch (e) {
-          console.warn('[TrafficMap] TrafficFlowModule.get() failed (public-preview SDK):', e);
+          console.warn('[TrafficMap] Traffic overlay layer failed:', e);
         }
 
-
-        // ── 4. Monitored segment markers ─────────────────────────────────
-        const mlMap = map.mapLibreMap;
-
+        // ── 3. Add monitored segment markers ──────────────────────────────────
         for (const seg of monitoredSegments) {
           const color = severityColor(seg.id, segmentDataRef.current);
           const el = buildMarkerEl(color);
@@ -277,9 +317,9 @@ export default function TrafficMap({
           const marker = new Marker({ element: el })
             .setLngLat([seg.lon, seg.lat])
             .setPopup(popup)
-            .addTo(mlMap);
+            .addTo(map);
 
-          // Patch popup background when it opens
+          // Dark theme popup styling
           marker.getPopup().on('open', () => {
             const wrapper = popup.getElement();
             if (wrapper) {
@@ -311,8 +351,8 @@ export default function TrafficMap({
     if (!container || typeof window.ResizeObserver === 'undefined') return;
 
     const observer = new ResizeObserver(() => {
-      if (mapRef.current?.mapLibreMap) {
-        mapRef.current.mapLibreMap.resize();
+      if (mapRef.current) {
+        mapRef.current.resize();
       }
     });
 
@@ -322,11 +362,11 @@ export default function TrafficMap({
 
   // ── Focus on selected segment if selectedSegmentId changes ──────────────
   useEffect(() => {
-    if (!selectedSegmentId || !mapRef.current?.mapLibreMap) return;
+    if (!selectedSegmentId || !mapRef.current) return;
     const seg = monitoredSegments.find((s) => s.id === selectedSegmentId);
     if (!seg) return;
 
-    mapRef.current.mapLibreMap.flyTo({
+    mapRef.current.flyTo({
       center: [seg.lon, seg.lat],
       zoom: 14.5,
       essential: true,
@@ -334,7 +374,7 @@ export default function TrafficMap({
 
     const match = markersRef.current.find((m) => m.segId === selectedSegmentId);
     if (match && !match.popup.isOpen()) {
-      match.popup.addTo(mapRef.current.mapLibreMap);
+      match.popup.addTo(mapRef.current);
     }
   }, [selectedSegmentId]);
 
@@ -356,13 +396,17 @@ export default function TrafficMap({
   }, [segmentData]);
 
   useEffect(() => {
-    if (mapRef.current?.mapReady) updateMarkers();
+    if (mapRef.current) updateMarkers();
   }, [segmentData, updateMarkers]);
 
-  const hasKey = !!process.env.NEXT_PUBLIC_TOMTOM_MAP_KEY;
+  const hasKey = !!process.env.NEXT_PUBLIC_MAPPLS_REST_API_KEY;
 
   return (
-    <div className={`relative w-full rounded-2xl overflow-hidden border border-slate-800/80 shadow-2xl bg-slate-950 ${className || 'h-[360px] sm:h-[480px] md:h-[540px] lg:h-[600px]'}`}>
+    <div
+      className={`relative w-full rounded-2xl overflow-hidden border border-slate-800/80 shadow-2xl bg-slate-950 ${
+        className || 'h-[360px] sm:h-[480px] md:h-[540px] lg:h-[600px]'
+      }`}
+    >
       {/* Map GL canvas – always rendered so the GL context persists */}
       <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
@@ -371,11 +415,7 @@ export default function TrafficMap({
         {/* Zoom In (+) */}
         <button
           type="button"
-          onClick={() => {
-            if (mapRef.current?.mapLibreMap) {
-              mapRef.current.mapLibreMap.zoomIn({ duration: 250 });
-            }
-          }}
+          onClick={() => mapRef.current?.zoomIn({ duration: 250 })}
           title="Zoom in (+)"
           aria-label="Zoom in"
           className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-900/90 hover:bg-slate-800 active:bg-cyan-950 text-white hover:text-cyan-300 font-bold text-lg sm:text-xl border border-slate-700/80 backdrop-blur-md flex items-center justify-center transition active:scale-95 cursor-pointer touch-manipulation shadow-md select-none"
@@ -386,11 +426,7 @@ export default function TrafficMap({
         {/* Zoom Out (-) */}
         <button
           type="button"
-          onClick={() => {
-            if (mapRef.current?.mapLibreMap) {
-              mapRef.current.mapLibreMap.zoomOut({ duration: 250 });
-            }
-          }}
+          onClick={() => mapRef.current?.zoomOut({ duration: 250 })}
           title="Zoom out (-)"
           aria-label="Zoom out"
           className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-900/90 hover:bg-slate-800 active:bg-cyan-950 text-white hover:text-cyan-300 font-bold text-lg sm:text-xl border border-slate-700/80 backdrop-blur-md flex items-center justify-center transition active:scale-95 cursor-pointer touch-manipulation shadow-md leading-none select-none pb-0.5"
@@ -401,15 +437,13 @@ export default function TrafficMap({
         {/* Recenter Hazaribagh */}
         <button
           type="button"
-          onClick={() => {
-            if (mapRef.current?.mapLibreMap) {
-              mapRef.current.mapLibreMap.flyTo({
-                center: [85.362, 23.996],
-                zoom: 13.5,
-                essential: true,
-              });
-            }
-          }}
+          onClick={() =>
+            mapRef.current?.flyTo({
+              center: [85.362, 23.996],
+              zoom: 13.5,
+              essential: true,
+            })
+          }
           title="Recenter on Hazaribagh"
           aria-label="Recenter on Hazaribagh"
           className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-slate-900/90 hover:bg-slate-800 active:bg-cyan-950 text-slate-200 hover:text-white border border-slate-700/80 backdrop-blur-md flex items-center justify-center transition active:scale-95 cursor-pointer touch-manipulation shadow-md text-sm sm:text-base select-none"
@@ -440,7 +474,7 @@ export default function TrafficMap({
 
       {/* Attribution */}
       <div className="absolute bottom-2 right-2 z-10 text-[9px] text-slate-400 bg-slate-950/80 backdrop-blur-sm px-2 py-0.5 rounded-md border border-slate-800/60 hidden sm:block">
-        © OpenStreetMap contributors
+        © Mappls | MapMyIndia | © OpenStreetMap contributors
       </div>
 
       {/* Warning overlay when API key is absent */}
@@ -448,9 +482,13 @@ export default function TrafficMap({
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/95 backdrop-blur-md p-6 text-center">
           <div className="max-w-sm space-y-3">
             <div className="text-4xl">🗝️</div>
-            <p className="text-white font-bold text-sm">Map API Key Missing</p>
+            <p className="text-white font-bold text-sm">Mappls Map API Key Missing</p>
             <p className="text-slate-400 text-xs leading-relaxed">
-              Add <code className="text-cyan-400 font-mono">NEXT_PUBLIC_TOMTOM_MAP_KEY</code> to <code className="text-cyan-400 font-mono">.env</code> and restart server.
+              Add <code className="text-cyan-400 font-mono">NEXT_PUBLIC_MAPPLS_REST_API_KEY</code> to{' '}
+              <code className="text-cyan-400 font-mono">.env</code> and restart the server.
+              <br />
+              Get your key at{' '}
+              <span className="text-cyan-400">apis.mappls.com/console</span>
             </p>
           </div>
         </div>

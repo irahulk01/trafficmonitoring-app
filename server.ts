@@ -5,7 +5,7 @@ import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
 import { WebSocketServer } from 'ws';
-import { startTomTomPolling } from './lib/tomtom';
+import { startMapplsPolling } from './lib/mappls';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
@@ -40,8 +40,8 @@ app.prepare().then(() => {
     }
   });
 
-  // Initialize continuous server-side TomTom polling
-  startTomTomPolling(wss);
+  // Initialize continuous server-side Mappls traffic polling
+  startMapplsPolling(wss);
 
   server.listen(port, () => {
     console.log(`🚀 [TrafficApp] Server running on http://${hostname}:${port}`);

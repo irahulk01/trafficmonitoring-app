@@ -1,17 +1,17 @@
 import { create } from 'zustand';
-import { LiveSegmentData, TomTomIncident } from './tomtom';
+import { LiveSegmentData, TrafficIncident } from './mappls';
 
 export type FilterType = 'all' | 'heavy' | 'moderate' | 'developing';
 
 interface TrafficState {
   segments: LiveSegmentData[];
-  incidents: TomTomIncident[];
+  incidents: TrafficIncident[];
   connectionStatus: 'connected' | 'connecting' | 'disconnected' | 'reconnecting';
   lastUpdated: string | null;
   selectedSegmentId: string | null;
   filter: FilterType;
   setSegments: (segments: LiveSegmentData[]) => void;
-  setIncidents: (incidents: TomTomIncident[]) => void;
+  setIncidents: (incidents: TrafficIncident[]) => void;
   setConnectionStatus: (status: 'connected' | 'connecting' | 'disconnected' | 'reconnecting') => void;
   setLastUpdated: (timestamp: string) => void;
   setSelectedSegmentId: (id: string | null) => void;

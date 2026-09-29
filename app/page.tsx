@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useTrafficStore, FilterType } from '@/lib/store';
-import { LiveSegmentData, TomTomIncident } from '@/lib/tomtom';
+import { LiveSegmentData, TrafficIncident } from '@/lib/mappls';
 import PwaHeaderBanner, { PwaControls } from '@/app/components/PwaHeaderBanner';
 
 // Dynamically imported to keep the heavy MapLibre / TomTom Maps SDK GL bundle
@@ -719,7 +719,7 @@ export default function TrafficDashboard() {
                     <span>Live Traffic Map — Hazaribagh</span>
                   </h2>
                   <p className="text-[10px] sm:text-[11px] text-slate-400 mt-0.5">
-                    Real-time TomTom vector flow tiles &bull; Click any marker or corridor card below to inspect telemetry
+                   Real-time Mappls vector flow tiles &bull; Click any marker or corridor card below to inspect telemetry
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-xs font-mono flex-wrap">
