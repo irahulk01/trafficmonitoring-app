@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getLatestIncidents } from '@/lib/tomtom';
+import { getLatestIncidents } from '@/lib/mappls';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,8 +10,8 @@ export async function GET() {
     success: true,
     count: incidents.length,
     data: incidents,
-    source: 'tomtom_sdk_incidents',
-    engine: 'TomTom Maps & Services SDK',
+    source: 'mappls_api_incidents',
+    engine: 'Mappls Routing API',
     timestamp: new Date().toISOString(),
   });
 }

@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getLatestSegmentData } from '@/lib/tomtom';
+import { getLatestSegmentData } from '@/lib/mappls';
 import { monitoredSegments } from '@/lib/segments';
-import { fetchSegmentTrafficSDK } from '@/lib/tomtom/flow-service';
+import { fetchSegmentTrafficMappls } from '@/lib/mappls/flow-service';
 
 export const dynamic = 'force-dynamic';
 
-// In-memory cache for serverless environments (prevents hitting TomTom rate limits on concurrent requests)
+// In-memory cache for serverless environments (prevents hitting Mappls rate limits on concurrent requests)
 let serverlessCache: { data: unknown[]; timestamp: number } = { data: [], timestamp: 0 };
 
 export async function GET() {
@@ -17,12 +17,12 @@ export async function GET() {
       count: latestData.length,
       data: latestData,
       source: 'live_telemetry_cache',
-      engine: 'Live Telemetry SDK',
+      engine: 'Mappls Routing API',
       timestamp: new Date().toISOString(),
     });
   }
 
-  // Serverless fallback for Vercel: serve from 10s memory cache or fetch on-demand via TomTom SDK
+  // Serverless fallback: serve from 10s memory cache or fetch on-demand via Mappls API
   const now = Date.now();
   if (serverlessCache.data.length > 0 && now - serverlessCache.timestamp < 10000) {
     return NextResponse.json({
@@ -30,14 +30,14 @@ export async function GET() {
       count: serverlessCache.data.length,
       data: serverlessCache.data,
       source: 'serverless_cache',
-      engine: 'Live Telemetry SDK',
+      engine: 'Mappls Routing API',
       timestamp: new Date(serverlessCache.timestamp).toISOString(),
     });
   }
 
   try {
     const results = await Promise.allSettled(
-      monitoredSegments.map((segment) => fetchSegmentTrafficSDK(segment))
+      monitoredSegments.map((segment) => fetchSegmentTrafficMappls(segment))
     );
     const liveSegments = results
       .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
@@ -50,7 +50,7 @@ export async function GET() {
         count: liveSegments.length,
         data: liveSegments,
         source: 'serverless_live_fetch',
-        engine: 'TomTom SDK On-Demand',
+        engine: 'Mappls Routing API On-Demand',
         timestamp: new Date().toISOString(),
       });
     }
@@ -79,4 +79,3 @@ export async function GET() {
     timestamp: new Date().toISOString(),
   });
 }
-
